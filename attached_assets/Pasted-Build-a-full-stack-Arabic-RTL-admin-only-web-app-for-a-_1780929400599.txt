@@ -1,0 +1,79 @@
+Build a full-stack Arabic RTL admin-only web app for a summer camp called "نادي النخبة".
+
+The website is NOT public. It is only for the founder/admin to manage participants in a private database.
+
+Language/UI:
+- Entire interface must be in Arabic.
+- RTL layout.
+- Clean modern dashboard design.
+- Use Arabic-friendly font like Cairo or Tajawal.
+- App name/logo text: نادي النخبة.
+
+Tech:
+- Build with React + Node/Express + SQLite database.
+- Make it work directly inside Replit.
+- Use environment variables for admin login:
+  ADMIN_USERNAME
+  ADMIN_PASSWORD
+- No public signup.
+- Require login before showing any data.
+
+Main dashboard features:
+1. صفحة تسجيل الدخول
+2. لوحة تحكم تعرض:
+   - إجمالي عدد المشتركين
+   - إجمالي المبالغ المدفوعة
+   - إجمالي المبالغ المتبقية
+   - عدد الاشتراكات النشطة
+   - عدد الاشتراكات المنتهية
+3. جدول كامل للمشتركين
+4. إضافة مشترك جديد
+5. تعديل بيانات مشترك
+6. حذف مشترك مع تأكيد
+7. بحث بالاسم أو رقم الهوية أو رقم الجوال
+8. فلترة حسب الحالة: نشط / منتهي / الكل
+9. تصدير البيانات CSV
+10. زر طباعة بيانات مشترك واحد
+
+Participant database fields:
+- اسم المشترك
+- عمر المشترك
+- المرحلة الدراسية
+- اسم ولي أمر المشترك
+- رقم جوال ولي الأمر
+- رقم إضافي آخر لولي الأمر
+- رقم الهوية
+- تاريخ التسجيل
+- تاريخ الانتهاء
+- المبلغ المدفوع
+- المبلغ المتبقي لإتمام المبلغ الكامل
+- مدة التسجيل
+- ملاحظات إضافية
+- الحالة automatically calculated:
+  if تاريخ الانتهاء is before today = منتهي
+  otherwise = نشط
+
+Form requirements:
+- All required fields should show Arabic validation messages.
+- Phone numbers should accept Saudi-style numbers.
+- Amount fields should accept numbers only.
+- Dates should use date picker.
+- After adding or editing, show success message in Arabic.
+
+Design:
+- Modern admin dashboard.
+- Use cards, table, search bar, and buttons.
+- Main colors: dark green, gold, white, and light beige.
+- Responsive layout for laptop and mobile.
+- Make the table easy to read.
+
+Security/privacy:
+- Do not show participant data unless admin is logged in.
+- Store password securely.
+- Add logout button.
+- Do not expose database files publicly.
+- Add a simple privacy note inside the admin panel:
+  "هذه البيانات خاصة بإدارة نادي النخبة ولا يجوز مشاركتها خارج الإدارة."
+
+Also create sample dummy participants so I can test the website.
+Make sure everything runs with npm install and npm run dev.

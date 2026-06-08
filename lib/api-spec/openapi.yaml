@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for نادي النخبة admin dashboard
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: participants
+    description: Participant management
+  - name: stats
+    description: Dashboard statistics
 paths:
   /healthz:
     get:
@@ -24,6 +30,204 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current auth status
+      responses:
+        "200":
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /participants:
+    get:
+      operationId: listParticipants
+      tags: [participants]
+      summary: List all participants
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name, ID, or phone
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, expired, all]
+          description: Filter by status
+      responses:
+        "200":
+          description: List of participants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Participant"
+    post:
+      operationId: createParticipant
+      tags: [participants]
+      summary: Create a new participant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantInput"
+      responses:
+        "201":
+          description: Participant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /participants/{id}:
+    get:
+      operationId: getParticipant
+      tags: [participants]
+      summary: Get a single participant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Participant details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateParticipant
+      tags: [participants]
+      summary: Update a participant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantUpdate"
+      responses:
+        "200":
+          description: Participant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteParticipant
+      tags: [participants]
+      summary: Delete a participant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Participant deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +238,221 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthResult:
+      type: object
+      required: [authenticated, username]
+      properties:
+        authenticated:
+          type: boolean
+        username:
+          type: string
+
+    Participant:
+      type: object
+      required:
+        - id
+        - name
+        - age
+        - gradeLevel
+        - guardianName
+        - guardianPhone
+        - nationalId
+        - registrationDate
+        - endDate
+        - amountPaid
+        - amountRemaining
+        - registrationDuration
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: اسم المشترك
+        age:
+          type: integer
+          description: عمر المشترك
+        gradeLevel:
+          type: string
+          description: المرحلة الدراسية
+        guardianName:
+          type: string
+          description: اسم ولي الأمر
+        guardianPhone:
+          type: string
+          description: رقم جوال ولي الأمر
+        guardianPhoneAlt:
+          type: ["string", "null"]
+          description: رقم إضافي لولي الأمر
+        nationalId:
+          type: string
+          description: رقم الهوية
+        registrationDate:
+          type: string
+          format: date
+          description: تاريخ التسجيل
+        endDate:
+          type: string
+          format: date
+          description: تاريخ الانتهاء
+        amountPaid:
+          type: number
+          description: المبلغ المدفوع
+        amountRemaining:
+          type: number
+          description: المبلغ المتبقي
+        registrationDuration:
+          type: string
+          description: مدة التسجيل
+        notes:
+          type: ["string", "null"]
+          description: ملاحظات إضافية
+        status:
+          type: string
+          enum: [active, expired]
+          description: الحالة (نشط / منتهي)
+        createdAt:
+          type: string
+          format: date-time
+
+    ParticipantInput:
+      type: object
+      required:
+        - name
+        - age
+        - gradeLevel
+        - guardianName
+        - guardianPhone
+        - nationalId
+        - registrationDate
+        - endDate
+        - amountPaid
+        - amountRemaining
+        - registrationDuration
+      properties:
+        name:
+          type: string
+          minLength: 1
+        age:
+          type: integer
+          minimum: 1
+          maximum: 100
+        gradeLevel:
+          type: string
+          minLength: 1
+        guardianName:
+          type: string
+          minLength: 1
+        guardianPhone:
+          type: string
+          minLength: 1
+        guardianPhoneAlt:
+          type: string
+        nationalId:
+          type: string
+          minLength: 1
+        registrationDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        amountPaid:
+          type: number
+          minimum: 0
+        amountRemaining:
+          type: number
+          minimum: 0
+        registrationDuration:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+
+    ParticipantUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        age:
+          type: integer
+          minimum: 1
+          maximum: 100
+        gradeLevel:
+          type: string
+          minLength: 1
+        guardianName:
+          type: string
+          minLength: 1
+        guardianPhone:
+          type: string
+          minLength: 1
+        guardianPhoneAlt:
+          type: string
+        nationalId:
+          type: string
+          minLength: 1
+        registrationDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        amountPaid:
+          type: number
+          minimum: 0
+        amountRemaining:
+          type: number
+          minimum: 0
+        registrationDuration:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+
+    DashboardStats:
+      type: object
+      required:
+        - totalParticipants
+        - totalAmountPaid
+        - totalAmountRemaining
+        - activeCount
+        - expiredCount
+      properties:
+        totalParticipants:
+          type: integer
+        totalAmountPaid:
+          type: number
+        totalAmountRemaining:
+          type: number
+        activeCount:
+          type: integer
+        expiredCount:
+          type: integer
