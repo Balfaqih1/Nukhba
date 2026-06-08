@@ -1,20 +1,23 @@
-# [Project name]
+# نادي النخبة — لوحة التحكم
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Arabic RTL admin-only web app for a summer camp called "نادي النخبة". Private management dashboard for the founder/admin to manage camp participants.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/admin-dashboard run dev` — run the frontend (port 22133)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- Frontend: React + Vite, Tailwind CSS, shadcn/ui, Wouter routing, TanStack Query
+- Arabic RTL UI, Tajawal Google font, dark green + gold palette
+- API: Express 5 + express-session (cookie-based auth)
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
@@ -22,24 +25,43 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI contract (source of truth)
+- `lib/db/src/schema/participants.ts` — participants table schema
+- `artifacts/api-server/src/routes/` — auth, participants, stats routes
+- `artifacts/api-server/src/middlewares/requireAuth.ts` — session auth middleware
+- `artifacts/admin-dashboard/src/pages/` — Login, Dashboard, Participants, ParticipantForm
+- `artifacts/admin-dashboard/src/components/Layout.tsx` — sidebar layout
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Cookie-based session auth using `express-session` + `SESSION_SECRET`; credentials checked against `ADMIN_USERNAME`/`ADMIN_PASSWORD` env vars — no user table in DB
+- Participant `status` (نشط/منتهي) is computed at query time by comparing `end_date` to today, never stored
+- Orval generates `z.coerce.date()` for OpenAPI `format: date` fields → routes convert `Date` objects to `YYYY-MM-DD` strings with a `toDateStr()` helper before inserting into Drizzle
+- CORS configured with `credentials: true` so session cookies are forwarded from the Vite dev proxy to the Express API
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- صفحة تسجيل الدخول — secure admin login, no public signup
+- لوحة التحكم — stats cards: total participants, paid amounts, remaining amounts, active/expired counts
+- جدول المشتركين — searchable + filterable participant table with CSV export and print
+- إضافة / تعديل مشترك — full Arabic form with validation, Saudi phone format, grade level + duration dropdowns
+- حذف مشترك — confirmation dialog before delete
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Entire interface in Arabic, RTL layout
+- Colors: dark green (#1a4731), gold (#c9a227), light beige (#faf7f0)
+- Arabic-friendly Tajawal Google font
+- No emojis anywhere in the UI
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`
+- After changing `lib/db/src/schema/`, run `pnpm run typecheck:libs` before checking the API server
+- Orval generates `z.coerce.date()` for date fields — the route layer must convert Date → string before DB writes
+- `express-session` cookie is `httpOnly: true, secure: true` in production — ensure HTTPS on deploy
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- 8 sample participants are pre-seeded in the database (mix of active/expired statuses)
