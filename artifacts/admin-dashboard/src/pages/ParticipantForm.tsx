@@ -1,16 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { 
-  useCreateParticipant, 
-  useUpdateParticipant, 
-  useGetParticipant,
-  getGetParticipantQueryKey,
-  getListParticipantsQueryKey
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { getParticipant, saveParticipant, updateParticipant } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -35,10 +28,10 @@ import {
 } from "@/components/ui/select";
 
 const GRADES = [
-  "روضة", "أول ابتدائي", "ثاني ابتدائي", "ثالث ابتدائي", 
-  "رابع ابتدائي", "خامس ابتدائي", "سادس ابتدائي", 
-  "أول متوسط", "ثاني متوسط", "ثالث متوسط", 
-  "أول ثانوي", "ثاني ثانوي", "ثالث ثانوي"
+  "روضة", "أول ابتدائي", "ثاني ابتدائي", "ثالث ابتدائي",
+  "رابع ابتدائي", "خامس ابتدائي", "سادس ابتدائي",
+  "أول متوسط", "ثاني متوسط", "ثالث متوسط",
+  "أول ثانوي", "ثاني ثانوي", "ثالث ثانوي",
 ];
 
 const DURATIONS = ["أسبوع", "أسبوعان", "شهر", "شهران", "ثلاثة أشهر"];
@@ -49,7 +42,7 @@ const formSchema = z.object({
   gradeLevel: z.string().min(1, "المرحلة الدراسية مطلوبة"),
   guardianName: z.string().min(1, "اسم ولي الأمر مطلوب"),
   guardianPhone: z.string().regex(/^05\d{8}$/, "رقم الجوال يجب أن يكون بصيغة 05xxxxxxxx"),
-  guardianPhoneAlt: z.string().regex(/^05\d{8}$/, "رقم الجوال يجب أن يكون بصيغة 05xxxxxxxx").optional().or(z.literal('')),
+  guardianPhoneAlt: z.string().optional().or(z.literal("")),
   nationalId: z.string().min(10, "رقم الهوية غير صحيح").max(15, "رقم الهوية غير صحيح"),
   registrationDate: z.string().min(1, "تاريخ التسجيل مطلوب"),
   endDate: z.string().min(1, "تاريخ الانتهاء مطلوب"),
@@ -63,16 +56,12 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function ParticipantForm({ params }: { params?: { id?: string } }) {
   const isEditing = !!params?.id;
-  const participantId = isEditing ? parseInt(params.id!, 10) : 0;
-  
+  const participantId = isEditing ? parseInt(params!.id!, 10) : 0;
+
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: existingParticipant, isLoading: isLoadingExisting } = useGetParticipant(
-    participantId,
-    { query: { enabled: isEditing, queryKey: getGetParticipantQueryKey(participantId) } }
-  );
+  const existing = isEditing ? getParticipant(participantId) : undefined;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -94,66 +83,51 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
   });
 
   useEffect(() => {
-    if (isEditing && existingParticipant) {
+    if (isEditing && existing) {
       form.reset({
-        name: existingParticipant.name,
-        age: existingParticipant.age,
-        gradeLevel: existingParticipant.gradeLevel,
-        guardianName: existingParticipant.guardianName,
-        guardianPhone: existingParticipant.guardianPhone,
-        guardianPhoneAlt: existingParticipant.guardianPhoneAlt || "",
-        nationalId: existingParticipant.nationalId,
-        registrationDate: existingParticipant.registrationDate.split('T')[0],
-        endDate: existingParticipant.endDate.split('T')[0],
-        amountPaid: existingParticipant.amountPaid,
-        amountRemaining: existingParticipant.amountRemaining,
-        registrationDuration: existingParticipant.registrationDuration,
-        notes: existingParticipant.notes || "",
+        name: existing.name,
+        age: existing.age,
+        gradeLevel: existing.gradeLevel,
+        guardianName: existing.guardianName,
+        guardianPhone: existing.guardianPhone,
+        guardianPhoneAlt: existing.guardianPhoneAlt || "",
+        nationalId: existing.nationalId,
+        registrationDate: existing.registrationDate,
+        endDate: existing.endDate,
+        amountPaid: existing.amountPaid,
+        amountRemaining: existing.amountRemaining,
+        registrationDuration: existing.registrationDuration,
+        notes: existing.notes || "",
       });
     }
-  }, [existingParticipant, isEditing, form]);
-
-  const createMutation = useCreateParticipant();
-  const updateMutation = useUpdateParticipant();
-
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  }, []);
 
   const onSubmit = (data: FormValues) => {
-    if (isEditing) {
-      updateMutation.mutate(
-        { id: participantId, data },
-        {
-          onSuccess: () => {
-            toast({ title: "تم التعديل", description: "تم تحديث بيانات المشترك بنجاح" });
-            queryClient.invalidateQueries({ queryKey: getGetParticipantQueryKey(participantId) });
-            queryClient.invalidateQueries({ queryKey: getListParticipantsQueryKey() });
-            setLocation("/participants");
-          },
-          onError: () => toast({ title: "خطأ", description: "حدث خطأ أثناء حفظ البيانات", variant: "destructive" })
-        }
-      );
-    } else {
-      createMutation.mutate(
-        { data },
-        {
-          onSuccess: () => {
-            toast({ title: "تمت الإضافة", description: "تم إضافة المشترك بنجاح" });
-            queryClient.invalidateQueries({ queryKey: getListParticipantsQueryKey() });
-            setLocation("/participants");
-          },
-          onError: () => toast({ title: "خطأ", description: "حدث خطأ أثناء حفظ البيانات", variant: "destructive" })
-        }
-      );
-    }
-  };
+    const payload = {
+      name: data.name,
+      age: data.age,
+      gradeLevel: data.gradeLevel,
+      guardianName: data.guardianName,
+      guardianPhone: data.guardianPhone,
+      guardianPhoneAlt: data.guardianPhoneAlt || "",
+      nationalId: data.nationalId,
+      registrationDate: data.registrationDate,
+      endDate: data.endDate,
+      amountPaid: data.amountPaid,
+      amountRemaining: data.amountRemaining,
+      registrationDuration: data.registrationDuration,
+      notes: data.notes || "",
+    };
 
-  if (isEditing && isLoadingExisting) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+    if (isEditing) {
+      updateParticipant(participantId, payload);
+      toast({ title: "تم التعديل", description: "تم تحديث بيانات المشترك بنجاح" });
+    } else {
+      saveParticipant(payload);
+      toast({ title: "تمت الإضافة", description: "تم إضافة المشترك بنجاح" });
+    }
+    setLocation("/participants");
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
@@ -182,9 +156,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>اسم المشترك <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="الاسم الرباعي" {...field} />
-                    </FormControl>
+                    <FormControl><Input placeholder="الاسم الرباعي" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -195,9 +167,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>رقم الهوية <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="رقم الهوية الوطنية أو الإقامة" {...field} dir="ltr" />
-                    </FormControl>
+                    <FormControl><Input placeholder="رقم الهوية الوطنية أو الإقامة" {...field} dir="ltr" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -208,9 +178,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>العمر <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="number" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -221,16 +189,12 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>المرحلة الدراسية <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر المرحلة الدراسية" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="اختر المرحلة الدراسية" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {GRADES.map(grade => (
-                          <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                        ))}
+                        {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -251,23 +215,19 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>اسم ولي الأمر <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="اسم ولي الأمر" {...field} />
-                    </FormControl>
+                    <FormControl><Input placeholder="اسم ولي الأمر" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="hidden md:block"></div>
+              <div className="hidden md:block" />
               <FormField
                 control={form.control}
                 name="guardianPhone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>رقم الجوال <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="05xxxxxxxx" {...field} dir="ltr" />
-                    </FormControl>
+                    <FormControl><Input placeholder="05xxxxxxxx" {...field} dir="ltr" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -278,9 +238,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>رقم إضافي (اختياري)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="05xxxxxxxx" {...field} dir="ltr" />
-                    </FormControl>
+                    <FormControl><Input placeholder="05xxxxxxxx" {...field} dir="ltr" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -299,32 +257,26 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>مدة التسجيل <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر المدة" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="اختر المدة" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {DURATIONS.map(duration => (
-                          <SelectItem key={duration} value={duration}>{duration}</SelectItem>
-                        ))}
+                        {DURATIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="hidden md:block"></div>
+              <div className="hidden md:block" />
               <FormField
                 control={form.control}
                 name="registrationDate"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>تاريخ التسجيل <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -335,9 +287,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>تاريخ الانتهاء <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -348,9 +298,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>المبلغ المدفوع (ريال) <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="number" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -361,9 +309,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>المبلغ المتبقي (ريال) <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="number" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -374,9 +320,7 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>ملاحظات (اختياري)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="أي ملاحظات إضافية..." {...field} />
-                    </FormControl>
+                    <FormControl><Input placeholder="أي ملاحظات إضافية..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -388,9 +332,9 @@ export default function ParticipantForm({ params }: { params?: { id?: string } }
             <Button type="button" variant="outline" onClick={() => setLocation("/participants")}>
               إلغاء
             </Button>
-            <Button type="submit" className="gap-2 bg-primary hover:bg-primary/90" disabled={isPending}>
+            <Button type="submit" className="gap-2 bg-primary hover:bg-primary/90">
               <Save className="w-4 h-4" />
-              {isPending ? "جاري الحفظ..." : "حفظ البيانات"}
+              حفظ البيانات
             </Button>
           </div>
         </form>

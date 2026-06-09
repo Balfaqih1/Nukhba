@@ -1,0 +1,85 @@
+Edit the existing project only. Do not rebuild from scratch. Do not create a new structure. Do not add unnecessary features.
+
+Goal:
+Fix this Arabic RTL admin dashboard for "نادي النخبة" so it works cleanly as a private participant management website.
+
+Main issues to fix:
+
+1. Login:
+
+* Use simple localStorage login for now.
+* Username: 12345
+* Password: 12345
+* After login, protected pages must open correctly.
+* Do not show login success unless the user actually enters the dashboard.
+* Add logout that clears localStorage.
+
+2. Layout:
+
+* Fix the broken dashboard layout after login.
+* Use the existing Layout/sidebar around all protected pages.
+* Sidebar should include:
+
+  * نظرة عامة
+  * المشتركين
+  * إضافة مشترك
+  * تسجيل الخروج
+
+3. Dashboard:
+
+* Fix all undefined / NaN values.
+* If no data, show 0.
+* Calculate stats from the same participants data:
+
+  * إجمالي المشتركين
+  * الاشتراكات النشطة
+  * الاشتراكات المنتهية
+  * إجمالي المبالغ المدفوعة
+  * إجمالي المبالغ المتبقية
+
+4. Participants data:
+
+* If the current backend/API is broken or causing auth/data problems, replace participant data handling with localStorage for now.
+* Seed 3 sample participants.
+* Use these fields:
+
+  * اسم المشترك
+  * عمر المشترك
+  * المرحلة الدراسية
+  * اسم ولي أمر المشترك
+  * رقم جوال ولي الأمر
+  * رقم إضافي آخر لولي الأمر
+  * رقم الهوية
+  * تاريخ التسجيل
+  * تاريخ الانتهاء
+  * المبلغ المدفوع
+  * المبلغ المتبقي
+  * مدة التسجيل
+  * ملاحظات
+  * الحالة calculated as نشط / منتهي from تاريخ الانتهاء
+
+5. Participants page:
+
+* Arabic RTL table.
+* Add, edit, delete with confirmation.
+* Search by name, ID, or phone.
+* Filter: الكل / نشط / منتهي.
+* Export CSV.
+* Print participant.
+
+6. Vite/build:
+
+* Fix Vite config so PORT and BASE_PATH are not required.
+* BASE_PATH should default to "/".
+* Remove any broken preinstall script that blocks Windows or Vercel.
+* The project must run with:
+  pnpm install
+  pnpm run dev
+  pnpm run build
+
+Rules:
+
+* Keep changes minimal.
+* Do not redesign everything.
+* Do not touch unrelated files.
+* Test login, dashboard, participants page, add/edit/delete, search/filter, logout, and build before saying done.

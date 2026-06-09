@@ -1,73 +1,63 @@
-import React from "react";
-import { useGetDashboardStats, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
+import React, { useMemo } from "react";
+import { useLocation } from "wouter";
+import { getParticipants } from "@/lib/storage";
 import { Users, CreditCard, AlertCircle, Activity, Banknote } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useGetDashboardStats({
-    query: {
-      queryKey: getGetDashboardStatsQueryKey()
-    }
-  });
+  const [, setLocation] = useLocation();
 
-  if (isLoading || !stats) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">لوحة التحكم</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(5)].map((_, i) => (
-            <Card key={i} className="border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-[100px]" />
-                <Skeleton className="h-4 w-4 rounded-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-[60px]" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const stats = useMemo(() => {
+    const participants = getParticipants();
+    const active = participants.filter((p) => p.status === "active");
+    const expired = participants.filter((p) => p.status === "expired");
+    const totalPaid = participants.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
+    const totalRemaining = participants.reduce((sum, p) => sum + (p.amountRemaining || 0), 0);
+    return {
+      total: participants.length,
+      active: active.length,
+      expired: expired.length,
+      totalPaid,
+      totalRemaining,
+    };
+  }, []);
 
   const statCards = [
     {
       title: "إجمالي المشتركين",
-      value: stats.totalParticipants,
+      value: stats.total,
       icon: Users,
       color: "text-blue-500",
-      bg: "bg-blue-500/10"
+      bg: "bg-blue-500/10",
     },
     {
       title: "الاشتراكات النشطة",
-      value: stats.activeCount,
+      value: stats.active,
       icon: Activity,
       color: "text-green-500",
-      bg: "bg-green-500/10"
+      bg: "bg-green-500/10",
     },
     {
       title: "الاشتراكات المنتهية",
-      value: stats.expiredCount,
+      value: stats.expired,
       icon: AlertCircle,
       color: "text-destructive",
-      bg: "bg-destructive/10"
+      bg: "bg-destructive/10",
     },
     {
       title: "إجمالي المبالغ المدفوعة",
-      value: `${stats.totalAmountPaid} ريال`,
+      value: `${stats.totalPaid.toLocaleString("ar-SA")} ريال`,
       icon: Banknote,
       color: "text-primary",
-      bg: "bg-primary/10"
+      bg: "bg-primary/10",
     },
     {
       title: "إجمالي المبالغ المتبقية",
-      value: `${stats.totalAmountRemaining} ريال`,
+      value: `${stats.totalRemaining.toLocaleString("ar-SA")} ريال`,
       icon: CreditCard,
       color: "text-amber-500",
-      bg: "bg-amber-500/10"
-    }
+      bg: "bg-amber-500/10",
+    },
   ];
 
   return (
@@ -76,10 +66,13 @@ export default function Dashboard() {
         <h2 className="text-3xl font-bold tracking-tight text-foreground">نظرة عامة</h2>
         <p className="text-muted-foreground mt-1 font-medium">مرحباً بك في لوحة تحكم نادي النخبة</p>
       </div>
-      
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {statCards.map((card, index) => (
-          <Card key={index} className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+          <Card
+            key={index}
+            className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {card.title}
@@ -93,6 +86,22 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="flex gap-4 pt-2">
+        <button
+          onClick={() => setLocation("/participants")}
+          className="text-sm text-primary hover:underline font-medium"
+        >
+          عرض جميع المشتركين
+        </button>
+        <span className="text-muted-foreground">·</span>
+        <button
+          onClick={() => setLocation("/participants/new")}
+          className="text-sm text-primary hover:underline font-medium"
+        >
+          إضافة مشترك جديد
+        </button>
       </div>
     </div>
   );
